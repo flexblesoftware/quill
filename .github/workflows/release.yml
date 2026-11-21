@@ -7,12 +7,11 @@ on:
       - 'version.json'
       - 'README.md'
       - 'docs/**'
+      - 'ci-build.log'
   workflow_dispatch:
 
 permissions:
   contents: write
-  issues: write
-  actions: read
 
 jobs:
   build-and-release:
@@ -34,27 +33,22 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew || true
-
       - name: Build Release APK
         id: build_apk
         run: |
-          gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
-
-      - name: Report failure to issue
-        if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "### CI Build Failure Log" > failure_summary.md
-          echo "Commit: ${{ github.sha }}" >> failure_summary.md
-          echo '```' >> failure_summary.md
-          if [ -f build.log ]; then
-            tail -n 300 build.log >> failure_summary.md
+          gradle --version
+          gradle assembleRelease --no-daemon --stacktrace > build.log 2>&1 || BUILD_FAILED=1
+          cat build.log | tail -n 120
+          if [ "$BUILD_FAILED" = "1" ]; then
+            echo "Gradle build failed! Exporting ci-build.log..."
+            cp build.log ci-build.log
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add ci-build.log
+            git commit -m "ci: capture build failure log [skip ci]" || true
+            git push origin main || true
+            exit 1
           fi
-          echo '```' >> failure_summary.md
-          gh issue create --title "CI Build Failure: ${{ github.sha }}" --body-file failure_summary.md || true
 
       - name: Sign Release APK
         id: sign_apk
