@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,7 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Environment & Antigravity Info Card
             Text("Antigravity Core", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = TextPrimary)
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -77,7 +79,7 @@ fun SettingsScreen(
                         Text("Installed agy Version", color = TextSecondary, fontSize = 14.sp)
                         Text(agyVersion, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
-                    Divider(color = DarkBorder)
+                    HorizontalDivider(color = DarkBorder)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -118,6 +120,7 @@ fun SettingsScreen(
                 }
             }
 
+            // Updates Section
             Text("Updates & Releases", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = TextPrimary)
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -169,6 +172,7 @@ fun SettingsScreen(
                 }
             }
 
+            // Data & Storage Management
             Text("Data & Storage", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = TextPrimary)
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -198,6 +202,7 @@ fun SettingsScreen(
                 }
             }
 
+            // App Identity & Credits
             Text("About Quill", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = TextPrimary)
             Card(
                 modifier = Modifier.fillMaxWidth(),
