@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+output.json
+
+# Keystores & Secrets
+*.jks
+*.keystore
+keystore.b64
+ks.b64
+*.p12
+*.key
+google-services.json
+secrets.properties
+keystore_pass.txt
+keystore_base64.txt

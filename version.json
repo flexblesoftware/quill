@@ -1,0 +1,18 @@
+{
+  "latestVersionCode": 1,
+  "latestVersionName": "1.0.0",
+  "minRequiredVersionCode": 1,
+  "apkUrl": "https://github.com/flexblesoftware/quill/releases/download/v1.0.0/Quill-v1.0.0.apk",
+  "sha256": "PENDING_RELEASE",
+  "changelog": [
+    "Initial release of Quill: Mobile AI Workspace App",
+    "Real Google Antigravity CLI integration inside Linux PRoot environment",
+    "Image generation with aspect ratio selection and Gallery download",
+    "ChatGPT-style streaming conversations with real event parsing",
+    "Code project manager with in-app PTY terminal emulator",
+    "Live models list and real quota usage monitor",
+    "Fine-grained permissions manager and execution audit log",
+    "In-app update system with SHA-256 verification and automatic download"
+  ],
+  "updatedAt": "2026-11-22T03:10:00Z"
+}
