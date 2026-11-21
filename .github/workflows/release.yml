@@ -1,0 +1,128 @@
+name: Build & Release Quill APK
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'version.json'
+      - 'README.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew || true
+
+      - name: Build Release APK
+        run: |
+          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            ./gradlew assembleRelease --no-daemon --stacktrace
+          else
+            gradle wrapper
+            ./gradlew assembleRelease --no-daemon --stacktrace || gradle assembleRelease --no-daemon --stacktrace
+          fi
+
+      - name: Sign Release APK
+        id: sign_apk
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: Release APK not found!"
+            exit 1
+          fi
+          echo "Found APK at: $APK_PATH"
+
+          VERSION_NAME=$(grep "versionName = " app/build.gradle.kts | head -n 1 | cut -d '"' -f 2)
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          OUTPUT_APK="Quill-v${VERSION_NAME}.apk"
+
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
+            echo "Using repository release keystore from GitHub Secrets..."
+            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+            KEY_PASS="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore release.keystore \
+              -storepass "$KEYSTORE_PASSWORD" \
+              -keypass "$KEY_PASS" \
+              "$APK_PATH" "$KEY_ALIAS"
+            rm -f release.keystore
+          else
+            echo "Generating fallback signing key for CI build verification..."
+            keytool -genkeypair -v -keystore ci.keystore -alias quill-ci \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "quillpass123" -keypass "quillpass123" \
+              -dname "CN=Quill App, O=Quill, C=US"
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore ci.keystore \
+              -storepass "quillpass123" \
+              -keypass "quillpass123" \
+              "$APK_PATH" quill-ci
+            rm -f ci.keystore
+          fi
+
+          cp "$APK_PATH" "$OUTPUT_APK"
+          SHA256=$(sha256sum "$OUTPUT_APK" | cut -d ' ' -f 1)
+          echo "OUTPUT_APK=$OUTPUT_APK" >> $GITHUB_ENV
+          echo "SHA256=$SHA256" >> $GITHUB_ENV
+          echo "Computed SHA-256: $SHA256"
+
+      - name: Update version.json
+        env:
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          python3 -c "
+          import json, datetime
+          with open('version.json', 'r') as f:
+              data = json.load(f)
+          data['sha256'] = '${{ env.SHA256 }}'
+          data['apkUrl'] = 'https://github.com/${{ env.GITHUB_REPO }}/releases/download/v${{ env.VERSION_NAME }}/${{ env.OUTPUT_APK }}'
+          data['updatedAt'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+          with open('version.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
+          cat version.json
+
+      - name: Commit version.json updates
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore(release): update version.json for v${{ env.VERSION_NAME }} [skip ci]"
+          git push origin main
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.VERSION_NAME }}"
+          name: "Quill v${{ env.VERSION_NAME }}"
+          files: ${{ env.OUTPUT_APK }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
