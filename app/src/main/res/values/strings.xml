@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Quill</string>
+    <string name="channel_agent_name">Quill Agent Service</string>
+    <string name="channel_agent_desc">Background task execution for Antigravity AI Agent</string>
+    <string name="channel_update_name">Quill Updates</string>
+    <string name="channel_update_desc">Notifications for Quill app updates</string>
+</resources>
