@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  actions: read
 
 jobs:
   build-and-release:
@@ -36,9 +38,23 @@ jobs:
         run: chmod +x gradlew || true
 
       - name: Build Release APK
+        id: build_apk
         run: |
-          gradle wrapper --gradle-version 8.7
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Report failure to issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "### CI Build Failure Log" > failure_summary.md
+          echo "Commit: ${{ github.sha }}" >> failure_summary.md
+          echo '```' >> failure_summary.md
+          if [ -f build.log ]; then
+            tail -n 300 build.log >> failure_summary.md
+          fi
+          echo '```' >> failure_summary.md
+          gh issue create --title "CI Build Failure: ${{ github.sha }}" --body-file failure_summary.md || true
 
       - name: Sign Release APK
         id: sign_apk
