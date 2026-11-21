@@ -26,6 +26,7 @@ fun UsageScreen(
 ) {
     val usage by viewModel.usage.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMsg by viewModel.errorMessage.collectAsState()
     val dateFormat = SimpleDateFormat("h:mm:ss a, MMM d", Locale.getDefault())
 
     Scaffold(
@@ -103,7 +104,7 @@ fun UsageScreen(
                         label = "Tokens Per Turn",
                         value = usage?.tokensPerTurn?.toString() ?: "Not available from agy"
                     )
-                    Divider(color = DarkBorder)
+                    HorizontalDivider(color = DarkBorder)
                     MetricRow(
                         label = "Session Total Tokens",
                         value = usage?.totalTokens?.toString() ?: "Not available from agy"

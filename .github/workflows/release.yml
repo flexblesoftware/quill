@@ -29,18 +29,16 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
 
       - name: Make gradlew executable
         run: chmod +x gradlew || true
 
       - name: Build Release APK
         run: |
-          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            ./gradlew assembleRelease --no-daemon --stacktrace
-          else
-            gradle wrapper
-            ./gradlew assembleRelease --no-daemon --stacktrace || gradle assembleRelease --no-daemon --stacktrace
-          fi
+          gradle wrapper --gradle-version 8.7
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Sign Release APK
         id: sign_apk
