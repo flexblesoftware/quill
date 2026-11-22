@@ -33,6 +33,9 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew || true
+
       - name: Build Release APK
         id: build_apk
         run: |
@@ -50,7 +53,7 @@ jobs:
             exit 1
           fi
 
-      - name: Sign Release APK
+      - name: Sign & Align Release APK (v1, v2, v3 schemes)
         id: sign_apk
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -63,37 +66,60 @@ jobs:
             echo "Error: Release APK not found!"
             exit 1
           fi
-          echo "Found APK at: $APK_PATH"
+          echo "Found unsigned APK at: $APK_PATH"
 
           VERSION_NAME=$(grep "versionName = " app/build.gradle.kts | head -n 1 | cut -d '"' -f 2)
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           OUTPUT_APK="Quill-v${VERSION_NAME}.apk"
 
+          # Find Android SDK Build Tools (zipalign & apksigner)
+          BUILD_TOOLS=$(find ${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools -maxdepth 1 -name "3*" | sort -V | tail -n 1)
+          echo "Using Android Build Tools from: $BUILD_TOOLS"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+
+          # 1. 4-byte alignment
+          echo "Running zipalign..."
+          "$ZIPALIGN" -f -v -p 4 "$APK_PATH" aligned.apk
+
+          # 2. Sign with APK Signature Scheme v1, v2, and v3
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
             echo "Using repository release keystore from GitHub Secrets..."
             echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
             KEY_PASS="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore release.keystore \
-              -storepass "$KEYSTORE_PASSWORD" \
-              -keypass "$KEY_PASS" \
-              "$APK_PATH" "$KEY_ALIAS"
+            "$APKSIGNER" sign --ks release.keystore \
+              --ks-pass "pass:$KEYSTORE_PASSWORD" \
+              --key-pass "pass:$KEY_PASS" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --v1-signing-enabled true \
+              --v2-signing-enabled true \
+              --v3-signing-enabled true \
+              --out "$OUTPUT_APK" \
+              aligned.apk
             rm -f release.keystore
           else
-            echo "Generating fallback signing key for CI build verification..."
+            echo "Generating signing key with APK Signature Scheme v1, v2 & v3..."
             keytool -genkeypair -v -keystore ci.keystore -alias quill-ci \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -storepass "quillpass123" -keypass "quillpass123" \
               -dname "CN=Quill App, O=Quill, C=US"
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore ci.keystore \
-              -storepass "quillpass123" \
-              -keypass "quillpass123" \
-              "$APK_PATH" quill-ci
+            "$APKSIGNER" sign --ks ci.keystore \
+              --ks-pass "pass:quillpass123" \
+              --key-pass "pass:quillpass123" \
+              --ks-key-alias quill-ci \
+              --v1-signing-enabled true \
+              --v2-signing-enabled true \
+              --v3-signing-enabled true \
+              --out "$OUTPUT_APK" \
+              aligned.apk
             rm -f ci.keystore
           fi
 
-          cp "$APK_PATH" "$OUTPUT_APK"
+          # 3. Verify signature schemes
+          echo "Verifying APK signatures with apksigner verify..."
+          "$APKSIGNER" verify --verbose "$OUTPUT_APK"
+
+          # 4. Compute SHA-256 checksum
           SHA256=$(sha256sum "$OUTPUT_APK" | cut -d ' ' -f 1)
           echo "OUTPUT_APK=$OUTPUT_APK" >> $GITHUB_ENV
           echo "SHA256=$SHA256" >> $GITHUB_ENV
@@ -107,6 +133,8 @@ jobs:
           import json, datetime
           with open('version.json', 'r') as f:
               data = json.load(f)
+          data['latestVersionCode'] = 2
+          data['latestVersionName'] = '${{ env.VERSION_NAME }}'
           data['sha256'] = '${{ env.SHA256 }}'
           data['apkUrl'] = 'https://github.com/${{ env.GITHUB_REPO }}/releases/download/v${{ env.VERSION_NAME }}/${{ env.OUTPUT_APK }}'
           data['updatedAt'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
