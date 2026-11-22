@@ -77,3 +77,17 @@
 - **Build Status:** Success (built via GitHub Actions runner with Gradle 8.7 and Temurin JDK 17)
 - **Signer:** Signed and aligned with SHA-256 digest
 - **Update Registry (`version.json`):** Verified live on `main` branch matching APK URL and hash
+
+---
+
+## 🚀 Release v1.0.1 Verification Report (APK Signature Scheme v2 & v3 Fix)
+- **Issue Diagnosed:** Android 11+ package installer rejects APKs signed solely via `jarsigner` (JAR signature scheme v1) with `INSTALL_PARSE_FAILED_NO_CERTIFICATES` ("App not installed as package appears to be invalid").
+- **Fix Applied:** Integrated Android SDK `zipalign -f -v -p 4` alignment followed by `apksigner sign` with `--v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true`. Verified via `apksigner verify --verbose`.
+- **Release Version:** `v1.0.1` (versionCode: `2`)
+- **Release Tag URL:** [GitHub Release v1.0.1](https://github.com/flexblesoftware/quill/releases/tag/v1.0.1)
+- **Direct APK Asset:** [Quill-v1.0.1.apk](https://github.com/flexblesoftware/quill/releases/download/v1.0.1/Quill-v1.0.1.apk)
+- **Build Status:** Success (built via GitHub Actions runner with Gradle 8.7 and Temurin JDK 17)
+- **Signer:** Android SDK `apksigner` with Scheme v1, v2, and v3
+- **SHA-256 Checksum:** `ad261b95103876a0fa0691ab82b111bb7654393b7955e1f3c99e3a37df0ebceb`
+- **Signature Schemes:** Verified using v1 (JAR), v2 (APK Signature Scheme v2), and v3 (APK Signature Scheme v3)
+- **Update Registry (`version.json`):** Verified live on `main` branch matching APK URL and hash
